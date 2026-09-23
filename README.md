@@ -91,6 +91,11 @@ Backward `nearest`, `linear`, `pchip` and `none` interpolation, and forward
 Other quirks of the original that affect output are kept, with comments where
 they appear in the code.
 
+## License
+
+GPL-3.0-only, as a derivative of projectionpasta, which is licensed under the
+GNU General Public License version 3. See [LICENSE](LICENSE).
+
 ## Development
 
 `cargo test` runs the unit and parity tests. To add a parity fixture, run the
