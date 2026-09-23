@@ -1,0 +1,104 @@
+# Example carto configuration. Copy to `carto.toml` (loaded automatically from
+# the current directory) or pass with `--config`.
+#
+# Every option is optional; the values shown are the defaults unless noted.
+# Options that are unset by default are shown commented out.
+
+[map]
+# Skip interactive setup and use the values below instead.
+skip_setup = true
+
+file_in = "input.png"
+file_out = "output.png"
+
+# Projections, by name or by number in the list printed by `carto list`.
+proj_in = "Equirectangular"
+proj_out = "Orthographic"
+
+# Aspect: [central longitude, central latitude, clockwise rotation from north], in degrees.
+aspect_in = [0, 0, 0]
+aspect_out = [0, 0, 0]
+
+# How azimuthal and conic maps are laid out:
+#   "global"    : a single global map
+#   "hem"       : a single hemisphere
+#   "bihem"     : paired hemispheres
+#   "global_if" : global if the projection allows it, bihemisphere otherwise
+azim_type_in = "global_if"
+azim_type_out = "hem"                   # default: "global_if"
+# azim_type = "hem"                     # for both maps; overrides the two above
+
+# Reference values in degrees, as a number or an array (e.g. maximum latitude
+# for Mercator, standard parallels for conics).
+# ref_in = 85
+# ref_out = [15, 45]
+# ref = [15, 45]                        # for both maps; overrides the two above
+
+[output]
+# Force the output width/height ratio (instead of the projection's own).
+# force_ratio = 1.5
+# Scale the output ratio by the input map's ratio relative to its projection's.
+relative_ratio = false
+# Output size: a width (height follows from the ratio), or [width, height].
+# force_scale = 4000
+
+# Treat the input map as truncated to a single world surface or hemisphere.
+truncate_in = true
+# Truncate the output map to a single world surface or hemisphere.
+truncate_out = true
+
+# Crop the input map to [left, right, top, bottom] pixel indices.
+# crop_in = [0, 1000, 0, 500]
+# Crop the output map to [left, right, top, bottom] pixel indices of the full output.
+# crop_out = [0, 1000, 0, 500]
+# The input map was cropped from a larger map (e.g. with crop_out or crop_vis):
+# [left, right, top, bottom, full map width, full map height].
+# is_crop_in = [0, 1000, 0, 500, 4000, 2000]
+
+# Hide output outside [min lon, max lon, min lat, max lat], in degrees:
+# in true coordinates (based on the aspects given)...
+# crop_coords_true = [-180, 180, -90, 90]
+# ...in the input map's own coordinates, treating it as normal aspect...
+# crop_coords_in = [-180, 180, -90, 90]
+# ...or in the output map's own coordinates, treating it as normal aspect.
+# crop_coords_out = [-180, 180, -90, 90]
+# (crop_coords only hide areas; they don't change the output size.)
+
+# Crop the output to the smallest box containing all visible areas, and
+# report the indices used (for later use with is_crop_in).
+crop_vis = false
+
+# Draw graticules:
+#   "true" : true longitude/latitude, based on the output aspect
+#   "in"   : the input map's coordinates, treating it as normal aspect
+#   "out"  : the output map's coordinates, treating it as normal aspect
+# graticules = "in"
+# Longitudes to mark as an array, or the interval between them (starting at
+# the antimeridian and proceeding east), in degrees. [] marks none.
+grat_lon = 30
+# As above for latitudes (with the interval starting at the south pole).
+grat_lat = 30
+# Graticule color as [r, g, b, a].
+grat_color = [100, 100, 100, 50]
+# Graticule line width in pixels.
+grat_width = 1
+
+[procedure]
+# Interpolation:
+#   "none"    : copy the nearest input pixel directly (backward only)
+#   "nearest", "linear" : both directions
+#   "slinear", "quintic", "pchip" : backward only
+#   "cubic"   : both directions
+interp_type = "nearest"
+# "backward" : interpolate on the input map for every output pixel
+# "forward"  : interpolate on the output map from every input pixel
+# "avoid_iter" : backward, unless forward avoids an iterative method
+proj_direction = "backward"
+# Use projection symmetry to speed up calculations; appropriate only for global maps.
+use_sym = true
+# Use extra steps to avoid seams at the edge of the original map.
+avoid_seam = true
+# Tolerated maximum proportional error for iterative methods.
+tolerance = 0.000001
+# Maximum iterations for iterative methods.
+max_iter = 20

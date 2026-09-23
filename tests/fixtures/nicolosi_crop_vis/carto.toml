@@ -1,0 +1,11 @@
+[map]
+aspect_in = [0, 0, 0]
+aspect_out = [-60, 10, 0]
+proj_in = "Equirectangular"
+proj_out = "Nicolosi Globular"
+azim_type_out = "hem"
+
+[output]
+force_scale = 160
+crop_vis = true
+

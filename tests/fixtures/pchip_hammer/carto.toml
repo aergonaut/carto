@@ -1,0 +1,12 @@
+[map]
+aspect_in = [10, -20, 5]
+aspect_out = [0, 0, 0]
+proj_in = "Equirectangular"
+proj_out = "Hammer"
+
+[output]
+force_scale = 160
+
+[procedure]
+interp_type = "pchip"
+

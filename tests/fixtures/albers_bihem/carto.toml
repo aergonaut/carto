@@ -1,0 +1,10 @@
+[map]
+aspect_in = [0, 0, 0]
+aspect_out = [0, 0, 0]
+proj_in = "Equirectangular"
+proj_out = "Albers Equal-Area Conic"
+azim_type_out = "bihem"
+
+[output]
+force_scale = 160
+

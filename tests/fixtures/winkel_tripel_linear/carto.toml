@@ -1,0 +1,12 @@
+[map]
+aspect_in = [0, 0, 0]
+aspect_out = [0, 0, 0]
+proj_in = "Equirectangular"
+proj_out = "Winkel Tripel"
+
+[output]
+force_scale = 160
+
+[procedure]
+interp_type = "linear"
+

@@ -1,0 +1,12 @@
+[map]
+aspect_in = [0, 0, 0]
+aspect_out = [30, 45, 20]
+proj_in = "Equirectangular"
+proj_out = "Orthographic"
+azim_type_out = "hem"
+
+[output]
+force_scale = 160
+graticules = "true"
+grat_color = [0, 0, 0, 77]
+

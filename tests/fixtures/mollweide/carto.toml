@@ -1,0 +1,9 @@
+[map]
+aspect_in = [0, 0, 0]
+aspect_out = [100, 0, 0]
+proj_in = "Equirectangular"
+proj_out = "Mollweide"
+
+[output]
+force_scale = 160
+

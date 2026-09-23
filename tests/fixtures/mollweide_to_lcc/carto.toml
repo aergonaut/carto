@@ -1,0 +1,12 @@
+[map]
+aspect_in = [0, 0, 0]
+aspect_out = [0, 0, 0]
+proj_in = "Mollweide"
+proj_out = "Lambert Conformal Conic"
+azim_type_out = "global"
+ref_out = [-30, 20, 60]
+
+[output]
+force_scale = 160
+graticules = "in"
+
