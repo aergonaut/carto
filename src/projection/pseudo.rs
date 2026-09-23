@@ -328,3 +328,89 @@ pub fn aitoff_pos(lon: f64, lat: f64) -> (f64, f64) {
     let al = PI / 2.0 * sinc((cos(lat) * cos(lon / 2.0)).acos() / PI);
     (cos(lat) * sin(lon / 2.0) / al, sin(lat) / al)
 }
+
+/// Wagner VII (Hammer-Wagner) is Hammer applied to a compressed sphere:
+/// longitude is scaled by 2/3 and latitude mapped through `sin 65° · sin(lat)`.
+const WAGNER7_SIN: f64 = 0.906_307_787_036_65; // sin 65°
+
+/// Hammer's normalized `y` at the map's corners (pole, ±180°), which becomes
+/// Wagner VII's `y = 1`. The pole lines bow outward, so this is their highest point.
+fn wagner7_ymax() -> f64 {
+    hammer_pos(PI / 1.5, WAGNER7_SIN.asin()).1
+}
+
+pub fn wagner7_ratio() -> f64 {
+    // Snyder's x and y scale factors, 2.66723 and 1.24104, make the map equal-area.
+    2.66723 / (1.24104 * SQRT_2 * wagner7_ymax())
+}
+
+/// Longitude and the sine of latitude, which exceeds 1 beyond the pole lines.
+fn wagner7_lon_sinlat(x: f64, y: f64) -> (f64, f64) {
+    let (lon, lat) = hammer_coords(x / SQRT_2, y * wagner7_ymax());
+    (lon * 1.5, sin(lat) / WAGNER7_SIN)
+}
+
+pub fn wagner7_coords(x: f64, y: f64) -> (f64, f64) {
+    let (lon, sinlat) = wagner7_lon_sinlat(x, y);
+    // Clamped so points on the pole lines don't round to NaN; `wagner7_vis`
+    // excludes the points beyond them.
+    (lon, sinlat.clamp(-1.0, 1.0).asin())
+}
+
+pub fn wagner7_pos(lon: f64, lat: f64) -> (f64, f64) {
+    let (x, y) = hammer_pos(lon / 1.5, (WAGNER7_SIN * sin(lat)).asin());
+    (x * SQRT_2, y / wagner7_ymax())
+}
+
+pub fn wagner7_vis(x: f64, y: f64) -> bool {
+    // Outside the underlying Hammer ellipse both values are NaN.
+    let (lon, sinlat) = wagner7_lon_sinlat(x, y);
+    lon.abs() <= PI && sinlat.abs() <= 1.0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Wagner VII as published (Snyder 1993; PROJ `wag7`).
+    fn wagner7_reference(lon: f64, lat: f64) -> (f64, f64) {
+        let s = 0.906_307_787_036_65 * lat.sin();
+        let c0 = (1.0 - s * s).sqrt();
+        let c1 = (2.0 / (1.0 + c0 * (lon / 3.0).cos())).sqrt();
+        (2.66723 * c0 * c1 * (lon / 3.0).sin(), 1.24104 * s * c1)
+    }
+
+    #[test]
+    fn wagner7_matches_reference() {
+        let (xmax, _) = wagner7_reference(PI, 0.0);
+        let (_, ymax) = wagner7_reference(PI, PI / 2.0);
+        assert!((wagner7_ratio() - xmax / ymax).abs() < 1e-12);
+        for i in -6..=6 {
+            for j in -3..=3 {
+                let (lon, lat) = (i as f64 * PI / 6.0, j as f64 * PI / 6.0);
+                let (x, y) = wagner7_pos(lon, lat);
+                let (rx, ry) = wagner7_reference(lon, lat);
+                assert!((x - rx / xmax).abs() < 1e-5 && (y - ry / ymax).abs() < 1e-5);
+            }
+        }
+    }
+
+    #[test]
+    fn wagner7_round_trips() {
+        for i in -12..=12 {
+            for j in -6..=6 {
+                let (lon, lat) = (i as f64 * PI / 12.0, j as f64 * PI / 12.0);
+                let (x, y) = wagner7_pos(lon, lat);
+                let (lon2, lat2) = wagner7_coords(x, y);
+                assert!((lon - lon2).abs() < 1e-9 || lat.abs() == PI / 2.0);
+                // `asin` near the poles loses about half the digits.
+                assert!((lat - lat2).abs() < 1e-7);
+            }
+        }
+        // The pole line dips toward the center: its corners reach y = 1, its middle doesn't.
+        let (xc, yc) = wagner7_pos(PI * 0.99, PI / 2.0 * 0.99);
+        assert!(wagner7_vis(0.99, 0.0) && wagner7_vis(xc, yc));
+        assert!(wagner7_vis(0.0, 0.9 * wagner7_pos(0.0, PI / 2.0).1));
+        assert!(!wagner7_vis(0.0, 0.99) && !wagner7_vis(1.01, 0.0) && !wagner7_vis(0.0, 1.01));
+    }
+}

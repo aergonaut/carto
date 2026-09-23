@@ -172,6 +172,7 @@ projections! {
     OrteliusOval => "Ortelius Oval", "2:1 oval (pseudocylindrical)";
     Pseudostereographic => "Pseudostereographic", "2:1 ellipse (pseudoazimuthal)";
     Pseudoorthographic => "Pseudoorthographic", "2:1 ellipse (pseudoazimuthal)";
+    WagnerVII => "Wagner VII", "1.845:1 ovalish (pseudoazimuthal); equal-area";
 }
 
 /// A prompt for projection reference values, used by interactive setup.
@@ -259,9 +260,8 @@ impl Projection {
         use Projection::*;
         match self {
             Hammer | WinkelTripel | Aitoff | AzimuthalEquidistant | LambertAzimuthal
-            | Stereographic | NicolosiGlobular | Pseudostereographic | Pseudoorthographic => {
-                Symmetry::Quad
-            }
+            | Stereographic | NicolosiGlobular | Pseudostereographic | Pseudoorthographic
+            | WagnerVII => Symmetry::Quad,
             EquidistantConic | AlbersConic | LambertConic => Symmetry::X,
             _ => Symmetry::QuadLat,
         }
@@ -304,6 +304,7 @@ impl Projection {
             LambertConic => conic::Lambert::new(ctx).ratio(),
             NicolosiGlobular => special::nicolosi_ratio(ctx),
             OrteliusOval => special::ortelius_ratio(ctx),
+            WagnerVII => pseudo::wagner7_ratio(),
             _ => 2.0,
         }
     }
@@ -338,6 +339,7 @@ impl Projection {
             OrteliusOval => special::ortelius_coords(x, y, ctx),
             Pseudostereographic => map2(x, y, special::psstereo_coords),
             Pseudoorthographic => map2(x, y, special::psortho_coords),
+            WagnerVII => map2(x, y, pseudo::wagner7_coords),
         }
     }
 
@@ -371,6 +373,7 @@ impl Projection {
             OrteliusOval => special::ortelius_pos(lon, lat, ctx),
             Pseudostereographic => map2(lon, lat, special::psstereo_pos),
             Pseudoorthographic => map2(lon, lat, special::psortho_pos),
+            WagnerVII => map2(lon, lat, pseudo::wagner7_pos),
         }
     }
 
@@ -432,6 +435,7 @@ impl Projection {
             LambertConic => return conic::Lambert::new(ctx).vis_far(x, y, lonlat, ctx),
             NicolosiGlobular => special::nicolosi_vis(x, y, ctx),
             OrteliusOval => special::ortelius_vis(x, y, ctx),
+            WagnerVII => mask2(x, y, pseudo::wagner7_vis),
         };
         (vis, None)
     }
