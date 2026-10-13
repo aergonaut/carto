@@ -8,6 +8,7 @@ use rayon::prelude::*;
 
 use crate::graticule;
 use crate::interp::{self, GridSource};
+use crate::marker;
 use crate::math::{arange, pixel_centers_x, pixel_centers_y, py_mod};
 use crate::options::{
     Direction, GraticuleMode, GraticuleSpec, InterpType, OutputOptions, Procedure,
@@ -317,10 +318,17 @@ pub fn reproject<T: Sample>(input: &Raster<T>, job: &Job) -> Result<Raster<T>> {
         ctx: &ctx_out,
         aspect: Aspect::from_degrees(job.aspect_out),
     };
+    let markers = marker_pixels(
+        &output.markers,
+        map_out,
+        &x_out,
+        &y_out,
+        (full_w_out, full_h_out),
+    );
 
     let result = match direction {
         Direction::Forward => project_forward(
-            input, &x_in, &y_in, &x_out, &y_out, map_in, map_out, &procedure, &output,
+            input, &x_in, &y_in, &x_out, &y_out, map_in, map_out, &procedure, &output, &markers,
         )?,
         _ => {
             let backward = Backward {
@@ -334,6 +342,7 @@ pub fn reproject<T: Sample>(input: &Raster<T>, job: &Job) -> Result<Raster<T>> {
                 map_out,
                 global_in,
                 full_size_out: (full_w_out, full_h_out),
+                markers: &markers,
             };
             backward.run(&procedure, &mut output)?
         }
@@ -353,6 +362,8 @@ struct Backward<'a, T> {
     map_out: MapProj<'a>,
     global_in: bool,
     full_size_out: (usize, usize),
+    /// Marker centers as `(col, row)` on the output grid.
+    markers: &'a [(i64, i64)],
 }
 
 impl<T: Sample> Backward<'_, T> {
@@ -596,6 +607,7 @@ impl<T: Sample> Backward<'_, T> {
                     px.fill(T::default());
                 }
             });
+        draw_markers(&mut out, self.markers, output);
 
         if output.crop_vis {
             let bounds = vis_all.iter().enumerate().filter(|(_, v)| **v).fold(
@@ -740,6 +752,64 @@ impl<T: Sample> Backward<'_, T> {
     }
 }
 
+/// Finds the output pixel `(col, row)` of each marker, given as true
+/// `[lon, lat]` in degrees, on the (possibly cropped) output grid. Points the
+/// output map doesn't show, such as the far side of a hemisphere, are dropped.
+fn marker_pixels(
+    markers: &[[f64; 2]],
+    map: MapProj,
+    xs: &[f64],
+    ys: &[f64],
+    (full_w, full_h): (usize, usize),
+) -> Vec<(i64, i64)> {
+    if markers.is_empty() || xs.is_empty() || ys.is_empty() {
+        return Vec::new();
+    }
+    let true_lon: Vec<f64> = markers.iter().map(|m| m[0].to_radians()).collect();
+    let true_lat: Vec<f64> = markers.iter().map(|m| m[1].to_radians()).collect();
+    let (mut lon, mut lat) = (true_lon.clone(), true_lat.clone());
+    map.aspect.rotate_to(&mut lon, &mut lat);
+    for l in &mut lon {
+        *l = py_mod(*l + PI, 2.0 * PI) - PI;
+    }
+    let (x, y) = map.proj.pos(&lon, &lat, map.ctx);
+    // Round trip back to true coordinates to catch points with no place on the map.
+    let (mut back_lon, mut back_lat) = map.proj.coords(&x, &y, map.ctx);
+    map.aspect.rotate_from(&mut back_lon, &mut back_lat);
+    let (vis, _) = map.proj.vis_far(&x, &y, None, map.ctx);
+    (0..markers.len())
+        .filter_map(|i| {
+            let shown = x[i].abs() <= 1.0
+                && y[i].abs() <= 1.0
+                && vis[i]
+                && angular_distance(true_lon[i], true_lat[i], back_lon[i], back_lat[i]) < 1e-3;
+            if !shown {
+                println!("   Marker {:?} is not on the output map", markers[i]);
+                return None;
+            }
+            let col = (x[i] - xs[0]) * full_w as f64 / 2.0;
+            let row = (ys[0] - y[i]) * full_h as f64 / 2.0;
+            Some((col.round() as i64, row.round() as i64))
+        })
+        .collect()
+}
+
+/// Great-circle distance between two points, in radians.
+fn angular_distance(lon0: f64, lat0: f64, lon1: f64, lat1: f64) -> f64 {
+    let a = ((lat1 - lat0) / 2.0).sin().powi(2)
+        + lat0.cos() * lat1.cos() * ((lon1 - lon0) / 2.0).sin().powi(2);
+    2.0 * a.sqrt().min(1.0).asin()
+}
+
+fn draw_markers<T: Sample>(out: &mut Raster<T>, centers: &[(i64, i64)], output: &OutputOptions) {
+    if centers.is_empty() {
+        return;
+    }
+    println!("  Adding markers...");
+    let marks = marker::mask(centers, out.height, out.width, output.marker_length);
+    blend(out, &marks, output.marker_color);
+}
+
 fn and_assign(acc: &mut [bool], mask: &[bool]) {
     acc.par_iter_mut().zip(mask).for_each(|(a, &m)| *a &= m);
 }
@@ -778,6 +848,7 @@ fn project_forward<T: Sample>(
     map_out: MapProj,
     procedure: &Procedure,
     output: &OutputOptions,
+    markers: &[(i64, i64)],
 ) -> Result<Raster<T>> {
     println!(" Working forwards from input to output projection");
     let keep = Keep {
@@ -861,5 +932,6 @@ fn project_forward<T: Sample>(
                 }
             });
     }
+    draw_markers(&mut out, markers, output);
     Ok(out)
 }

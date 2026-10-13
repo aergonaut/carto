@@ -12,6 +12,7 @@
 
 pub mod graticule;
 pub mod interp;
+pub mod marker;
 pub mod math;
 pub mod options;
 pub mod pad;

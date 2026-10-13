@@ -85,6 +85,8 @@ Backward `nearest`, `linear`, `pchip` and `none` interpolation, and forward
 - Combining `crop_in` with `is_crop_in` works; it crashed in the original.
 - Graticules can be drawn on grayscale images with alpha; they crashed in the
   original.
+- `markers` (with `marker_color` and `marker_length`) draws reference Xs at
+  given points; the original has no equivalent.
 - `carto globe --retrograde` turns by `360 / frames` degrees per frame; the
   original turned retrograde globes by 1 degree per frame.
 

@@ -157,6 +157,12 @@ pub struct OutputOptions {
     pub grat_color: [u8; 4],
     /// Graticule line width in pixels.
     pub grat_width: u32,
+    /// Points to mark with an X, as `[lon, lat]` in true coordinates (degrees).
+    pub markers: Vec<[f64; 2]>,
+    /// Marker color as RGBA.
+    pub marker_color: [u8; 4],
+    /// Length of each marker's diagonals in pixels.
+    pub marker_length: u32,
 }
 
 impl Default for OutputOptions {
@@ -179,6 +185,9 @@ impl Default for OutputOptions {
             grat_lat: GraticuleSpec::Interval(30.0),
             grat_color: [100, 100, 100, 50],
             grat_width: 1,
+            markers: Vec::new(),
+            marker_color: [255, 0, 0, 255],
+            marker_length: 11,
         }
     }
 }
@@ -301,6 +310,8 @@ mod tests {
             graticules = "in"
             grat_lon = [0, 90]
             grat_color = [0, 0, 0, 77]
+            markers = [[10, 20], [-45.5, 0]]
+            marker_length = 7
 
             [procedure]
             interp_type = "linear"
@@ -314,6 +325,9 @@ mod tests {
         assert_eq!(cfg.output.force_scale, Some(Scale::Size([100, 50])));
         assert_eq!(cfg.output.grat_lon, GraticuleSpec::List(vec![0.0, 90.0]));
         assert_eq!(cfg.output.grat_lat, GraticuleSpec::Interval(30.0));
+        assert_eq!(cfg.output.markers, vec![[10.0, 20.0], [-45.5, 0.0]]);
+        assert_eq!(cfg.output.marker_color, [255, 0, 0, 255]);
+        assert_eq!(cfg.output.marker_length, 7);
         assert_eq!(cfg.procedure.interp_type, InterpType::Linear);
         assert!(cfg.output.truncate_out);
     }

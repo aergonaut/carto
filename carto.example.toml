@@ -83,6 +83,14 @@ grat_color = [100, 100, 100, 50]
 # Graticule line width in pixels.
 grat_width = 1
 
+# Reference markers: draw an X at each [lon, lat], in true coordinates (degrees).
+# Points not shown on the output map are skipped.
+# markers = [[0, 0], [-74, 40.7]]
+# Marker color as [r, g, b, a].
+marker_color = [255, 0, 0, 255]
+# Length of each marker's diagonals in pixels.
+marker_length = 11
+
 [procedure]
 # Interpolation:
 #   "none"    : copy the nearest input pixel directly (backward only)
