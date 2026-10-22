@@ -7,23 +7,31 @@ Silva and Nikolai Hersfeldt, producing pixel-identical output (see
 reprojects to an 8000×4000 orthographic in 1.7 s, versus about 30 s for the
 original.
 
+It also has `carto elev`, a port of
+[elevpasta](https://github.com/hersfeldtn/elevpasta) by Nikolai Hersfeldt, which
+colors greyscale heightmaps by elevation (see [Elevation coloring](#elevation-coloring)).
+
 ## Usage
 
 ```sh
 cargo build --release
 
-# Interactive setup, as in the original
-carto
+# Interactive setup, as in the original (`carto p` is a shorthand)
+carto project
 
 # From a config file (see carto.example.toml); carto.toml in the current
 # directory is loaded automatically
-carto --config my-map.toml
+carto project --config my-map.toml
 
 # Or straight from the command line
-carto -i world.png -o globe.png --proj-in Equirectangular --proj-out Orthographic --aspect-out -30,20,0
+carto project -i world.png -o globe.png --proj-in Equirectangular --proj-out Orthographic --aspect-out -30,20,0
 
 carto list                                       # numbered list of projections
 carto globe -i world.png -o globe.gif --frames 36  # spinning globe animation
+
+# Color heightmaps by elevation, as set up in the [elev] config (`carto e` for short)
+carto elev
+carto elev --config my-map.toml -o color_map.png
 ```
 
 Command-line arguments override the config file. Setup is interactive unless
@@ -34,6 +42,59 @@ the config sets `skip_setup = true` or the input is given with `-i`.
 Options are the original's, in TOML, grouped into `[map]`, `[output]` and
 `[procedure]` tables. [`carto.example.toml`](carto.example.toml) documents every
 option. Options the original set to `None` are simply left out.
+
+One config file can configure several subcommands. Each subcommand reads only
+its own tables (`project` reads `[map]`, `[output]` and `[procedure]`; `elev`
+reads `[elev]`) and ignores the others, so the options of different subcommands
+never clash. Unknown options inside a subcommand's own tables, and tables no
+subcommand reads, are errors.
+
+## Elevation coloring
+
+`carto elev` (or `carto e`) colors greyscale heightmaps in layers, as elevpasta
+does. Instead of editing a script, the layers are `[[elev.layers]]` tables in the
+config file, with elevpasta's option names:
+
+```toml
+[elev]
+output = "color_map.png"
+
+[[elev.layers]]
+basemap = "elev_map.png"      # kept as the base map for later layers
+max = 10000                   # elevation of the brightest pixel ...
+min = -10000                  # ... and of the darkest
+steps = [-4000, -1000]
+colors = [[113, 171, 216], [150, 201, 240], [216, 242, 254]]  # one more than steps
+
+[[elev.layers]]               # no map: reuses the base map
+steps = [0, 100, 900]
+colors = [[172, 208, 165], [148, 191, 139], [239, 235, 192], [245, 244, 242]]
+above = 0                     # only where elevation > 0
+```
+
+Each layer gives a map (`map` for this layer, `basemap` to also keep it for
+later layers; neither reuses the base map), its scale (`max` and `min`, or
+`white` and `black` for the full range of the image's bit depth), and a color
+scale (`steps` and `colors`, or `onecolor`). `gradient = true` interpolates
+between steps, which then need as many colors as steps; `gradexp` raises
+elevations to a power first. A layer can be limited with `mask` (an image,
+applied where above half white), `above`, `below` and `compare` (`"max"` or
+`"min"`: only where the layer's map is higher or lower than the base map).
+Later layers paint over earlier ones; anything no layer covers is black. See
+[`carto.example.toml`](carto.example.toml) for every option.
+
+Differences from elevpasta:
+
+- Scaling with `white` and `black`, and `mask`, crash in the original script;
+  they are implemented as documented. Everything else gives identical output
+  (`tests/elev_parity.rs`).
+- With `max` and `min`, the original scales by the image's range without
+  subtracting its darkest value, so the brightest and darkest pixels get exactly
+  `max` and `min` only if the darkest pixel is 0, as in most heightmaps. carto
+  keeps this.
+- Step and color counts, step order, and combinations such as `gradexp`
+  without `gradient` are checked rather than silently misbehaving.
+- Images must be greyscale (8 or 16 bit); an alpha channel is ignored.
 
 ## Projections
 
@@ -95,12 +156,14 @@ they appear in the code.
 
 ## License
 
-GPL-3.0-only, as a derivative of projectionpasta, which is licensed under the
-GNU General Public License version 3. See [LICENSE](LICENSE).
+GPL-3.0-only, as a derivative of projectionpasta and elevpasta, which are both
+licensed under the GNU General Public License version 3. See [LICENSE](LICENSE).
 
 ## Development
 
 `cargo test` runs the unit and parity tests. To add a parity fixture, run the
 original on `tests/fixtures/input.png` and add a directory with the
 `carto.toml` and the original's output as `expected.png`, then list it in
-`tests/parity.rs`.
+`tests/parity.rs`. `carto elev` fixtures (`tests/fixtures/elev_*`, listed in
+`tests/elev_parity.rs`) hold their own maps, an `[elev]` section in
+`carto.toml`, and the output of elevpasta.py as `expected.png`.

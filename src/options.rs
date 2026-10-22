@@ -1,28 +1,31 @@
-//! Configuration, loaded from a TOML file.
+//! Configuration of the `project` subcommand, loaded from a TOML file.
 //!
 //! Option names follow the original projectionpasta config. Options that were
 //! `None` in the original are simply omitted.
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::Deserialize;
 
+use crate::config::{self, Schema};
 use crate::projection::{AzimType, ProjCtx, Projection, Side};
 
 #[derive(Clone, Debug, Default, Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
 pub struct Config {
     pub map: MapInfo,
     pub output: OutputOptions,
     pub procedure: Procedure,
 }
 
+impl Schema for Config {
+    const SECTIONS: &'static [&'static str] = &["map", "output", "procedure"];
+}
+
 impl Config {
     pub fn load(path: &Path) -> Result<Config> {
-        let text =
-            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-        toml::from_str(&text).with_context(|| format!("parsing {}", path.display()))
+        config::load(path)
     }
 }
 

@@ -25,7 +25,7 @@ aspect_out = [0, 0, 0]
 #   "bihem"     : paired hemispheres
 #   "global_if" : global if the projection allows it, bihemisphere otherwise
 azim_type_in = "global_if"
-azim_type_out = "hem"                   # default: "global_if"
+azim_type_out = "hem"      # default: "global_if"
 # azim_type = "hem"                     # for both maps; overrides the two above
 
 # Reference values in degrees, as a number or an array (e.g. maximum latitude
@@ -110,3 +110,279 @@ avoid_seam = true
 tolerance = 0.000001
 # Maximum iterations for iterative methods.
 max_iter = 20
+
+
+# The tables above configure `carto project`. `carto elev` reads only `[elev]`,
+# which is ignored by `carto project`, so both can share a file.
+#
+# Elevation coloring of greyscale heightmaps: layers are applied in order, each
+# painting over the last. Anything no layer covers is black.
+[elev]
+output = "color_map.png"
+
+# Each layer needs:
+#  - an elevation map (8 or 16 bit greyscale), except to reuse the base map:
+#      map      = "file.png"   # for this layer only
+#      basemap  = "file.png"   # as `map`, and kept as the base map for later layers
+#  - a scale for the map (only with a map), either:
+#      max, min     : elevations of the image's brightest and darkest pixels
+#                     (exact if the darkest pixel is 0)
+#      white, black : elevations of full white and full black for the bit depth
+#  - a color scale, either:
+#      steps  : elevations in increasing order
+#      colors : RGB colors. One more than steps for solid colors: one for each
+#               interval between steps, plus those below the first and above
+#               the last. As many as steps for `gradient`: one for each step,
+#               interpolated between.
+#    or:
+#      onecolor : a single RGB color for the whole layer
+#
+# Optional:
+#  - gradient = true  : interpolate colors between steps
+#  - gradexp          : with gradient, raise elevations to this power before
+#                       interpolating (e.g. 0.5 suits the scales below)
+#  - mask    = "file.png" : only where the greyscale mask is above half white
+#  - above, below        : only where elevation is above/below this
+#  - compare = "max"|"min" : only where this layer's map is higher/lower than the base map
+# Masks can be combined.
+
+# Sea, with the base map.
+[[elev.layers]]
+min = 
+steps = [-8100, -6400, -4900, -3600, -2500, -1600, -900, -400, -100]basemap = "elev_map.png"
+max = 10000
+colors = [
+    [
+        113,
+        171,
+        216,
+    ],
+    [
+        121,
+        178,
+        222,
+    ],
+    [
+        132,
+        185,
+        227,
+    ],
+    [
+        141,
+        193,
+        234,
+    ],
+    [
+        150,
+        201,
+        240,
+    ],
+    [
+        161,
+        210,
+        247,
+    ],
+    [
+        172,
+        219,
+        251,
+    ],
+    [
+        185,
+        227,
+        255,
+    ],
+    [
+        198,
+        236,
+        255,
+    ],
+    [
+        216,
+        242,
+        254,
+    ],
+]
+
+# Land, reusing the base map and applied only above sea level. Separate sea and
+# land layers avoid blending at the coast when using gradients.
+[[elev.layers]]
+above = 0
+steps = [
+    25,
+    100,
+    225,
+    400,
+    625,
+    900,
+    1225,
+    1600,
+    2025,
+    2500,
+    3025,
+    3600,
+    4225,
+    4900,
+    5625,
+    6400,
+    7225,
+    8100,
+]
+colors = [
+    [
+        172,
+        208,
+        165,
+    ],
+    [
+        148,
+        191,
+        139,
+    ],
+    [
+        168,
+        198,
+        143,
+    ],
+    [
+        189,
+        204,
+        150,
+    ],
+    [
+        209,
+        215,
+        171,
+    ],
+    [
+        225,
+        228,
+        181,
+    ],
+    [
+        239,
+        235,
+        192,
+    ],
+    [
+        232,
+        225,
+        182,
+    ],
+    [
+        222,
+        214,
+        163,
+    ],
+    [
+        211,
+        202,
+        157,
+    ],
+    [
+        202,
+        185,
+        130,
+    ],
+    [
+        195,
+        167,
+        107,
+    ],
+    [
+        185,
+        152,
+        90,
+    ],
+    [
+        170,
+        135,
+        83,
+    ],
+    [
+        172,
+        154,
+        124,
+    ],
+    [
+        186,
+        174,
+        154,
+    ],
+    [
+        202,
+        195,
+        184,
+    ],
+    [
+        224,
+        222,
+        216,
+    ],
+    [
+        245,
+        244,
+        242,
+    ],
+]
+
+# Ice, from its own map, only where it is above the land.
+[[elev.layers]]
+map = "ice_map.png"
+max = 10000
+min = 0
+compare = "max"
+above = 0
+steps = [100, 400, 900, 1600, 2500, 3600, 4900, 6400, 8100]
+colors = [
+    [
+        210,
+        210,
+        210,
+    ],
+    [
+        215,
+        215,
+        215,
+    ],
+    [
+        220,
+        220,
+        220,
+    ],
+    [
+        225,
+        225,
+        225,
+    ],
+    [
+        230,
+        230,
+        230,
+    ],
+    [
+        235,
+        235,
+        235,
+    ],
+    [
+        240,
+        240,
+        240,
+    ],
+    [
+        245,
+        245,
+        245,
+    ],
+    [
+        250,
+        250,
+        250,
+    ],
+    [
+        255,
+        255,
+        255,
+    ],
+]

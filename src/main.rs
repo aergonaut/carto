@@ -5,6 +5,9 @@ use clap::{Args, Parser, Subcommand};
 use image::codecs::gif::{GifEncoder, Repeat};
 use image::{Delay, Frame};
 
+use carto::config::{self, Schema};
+use carto::elev;
+use carto::elev::options::ElevConfig;
 use carto::options::{Config, MapInfo};
 use carto::projection::{AzimType, Projection};
 use carto::raster::AnyRaster;
@@ -19,16 +22,20 @@ const DEFAULT_CONFIG: &str = "carto.toml";
 /// current directory, if present). Unless the config sets `skip_setup` or the
 /// maps are given on the command line, the maps and projections are prompted for.
 #[derive(Parser)]
-#[command(version, args_conflicts_with_subcommands = true)]
+#[command(version, arg_required_else_help = true)]
 struct Cli {
     #[command(subcommand)]
-    command: Option<Command>,
-    #[command(flatten)]
-    project: ProjectArgs,
+    command: Command,
 }
 
 #[derive(Subcommand)]
 enum Command {
+    /// Reproject a map between projections and aspects.
+    #[command(visible_alias = "p")]
+    Project(ProjectArgs),
+    /// Color greyscale heightmaps by elevation.
+    #[command(visible_alias = "e")]
+    Elev(ElevArgs),
     /// List the available projections.
     List,
     /// Render an animated GIF of a rotating orthographic globe.
@@ -43,14 +50,15 @@ struct ConfigArg {
 }
 
 impl ConfigArg {
-    fn load(&self) -> Result<Config> {
+    /// Loads the subcommand's schema `T` from the config file, or its defaults if there is none.
+    fn load<T: Schema + Default>(&self) -> Result<T> {
         let path = match &self.config {
             Some(path) => path.as_path(),
             None if Path::new(DEFAULT_CONFIG).exists() => Path::new(DEFAULT_CONFIG),
-            None => return Ok(Config::default()),
+            None => return Ok(T::default()),
         };
         println!("Loading options from {}...", path.display());
-        Config::load(path)
+        config::load(path)
     }
 }
 
@@ -76,6 +84,15 @@ struct ProjectArgs {
     /// Output map aspect: central longitude, central latitude, rotation (degrees).
     #[arg(long, value_parser = parse_aspect, allow_hyphen_values = true)]
     aspect_out: Option<[f64; 3]>,
+}
+
+#[derive(Args)]
+struct ElevArgs {
+    #[command(flatten)]
+    config: ConfigArg,
+    /// Output map file (overrides `output` in the `[elev]` config).
+    #[arg(short, long)]
+    output: Option<PathBuf>,
 }
 
 #[derive(Args)]
@@ -119,12 +136,13 @@ fn parse_aspect(s: &str) -> Result<[f64; 3], String> {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Some(Command::List) => {
+        Command::Project(args) => project(args),
+        Command::Elev(args) => elev(args),
+        Command::List => {
             setup::print_projection_list();
             Ok(())
         }
-        Some(Command::Globe(args)) => globe(args),
-        None => project(cli.project),
+        Command::Globe(args) => globe(args),
     }
 }
 
@@ -139,7 +157,7 @@ fn banner() {
 
 fn project(args: ProjectArgs) -> Result<()> {
     banner();
-    let mut config = args.config.load()?;
+    let mut config: Config = args.config.load()?;
     let map = &mut config.map;
     let given_on_cli = args.input.is_some();
     map.file_in = args.input.or(map.file_in.take());
@@ -185,8 +203,21 @@ fn project(args: ProjectArgs) -> Result<()> {
     Ok(())
 }
 
+fn elev(args: ElevArgs) -> Result<()> {
+    let mut options = args.config.load::<ElevConfig>()?.elev;
+    if let Some(output) = args.output {
+        options.output = output;
+    }
+    println!("Working...");
+    let map = AnyRaster::U8(elev::render(&options)?);
+    println!("  Saving image...");
+    map.save(&options.output)?;
+    println!(" Map saved to {}", options.output.display());
+    Ok(())
+}
+
 fn globe(args: GlobeArgs) -> Result<()> {
-    let config = args.config.load()?;
+    let config: Config = args.config.load()?;
     let mut params = config.map.params();
     params.azim_type_out = AzimType::Hem;
     let mut job = Job {

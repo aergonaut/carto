@@ -28,6 +28,6 @@ mod tests {
             .chunks(5)
             .map(|r| r.iter().map(|&b| if b { '#' } else { '.' }).collect())
             .collect();
-        assert_eq!(rows, ["#.#.#",".#.#.", "#.#.."]);
+        assert_eq!(rows, ["#.#.#", ".#.#.", "#.#.."]);
     }
 }
